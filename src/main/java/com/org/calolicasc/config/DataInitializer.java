@@ -2,15 +2,19 @@ package com.org.calolicasc.config;
 
 import com.org.calolicasc.model.*;
 import com.org.calolicasc.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
 
-    @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private QuadraRepository quadraRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final QuadraRepository quadraRepository;
+
+    public DataInitializer(UsuarioRepository usuarioRepository, QuadraRepository quadraRepository) {
+        this.usuarioRepository = usuarioRepository;
+        this.quadraRepository = quadraRepository;
+    }
 
     @Override
     public void run(String... args) {

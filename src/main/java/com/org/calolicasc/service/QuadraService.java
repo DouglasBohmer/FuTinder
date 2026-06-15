@@ -3,7 +3,6 @@ package com.org.calolicasc.service;
 import com.org.calolicasc.model.Quadra;
 import com.org.calolicasc.repository.PartidaRepository;
 import com.org.calolicasc.repository.QuadraRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,11 +16,13 @@ import java.util.Map;
 @Service
 public class QuadraService {
 
-    @Autowired
-    private QuadraRepository quadraRepository;
+    private final QuadraRepository quadraRepository;
+    private final PartidaRepository partidaRepository;
 
-    @Autowired
-    private PartidaRepository partidaRepository;
+    public QuadraService(QuadraRepository quadraRepository, PartidaRepository partidaRepository) {
+        this.quadraRepository = quadraRepository;
+        this.partidaRepository = partidaRepository;
+    }
 
     public List<Map<String, Object>> listarTodas() {
         List<Map<String, Object>> result = new ArrayList<>();

@@ -3,7 +3,6 @@ package com.org.calolicasc.service;
 import com.org.calolicasc.model.Usuario;
 import com.org.calolicasc.repository.InscricaoRepository;
 import com.org.calolicasc.repository.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -13,11 +12,13 @@ import java.util.Optional;
 @Service
 public class UsuarioService {
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final InscricaoRepository inscricaoRepository;
 
-    @Autowired
-    private InscricaoRepository inscricaoRepository;
+    public UsuarioService(UsuarioRepository usuarioRepository, InscricaoRepository inscricaoRepository) {
+        this.usuarioRepository = usuarioRepository;
+        this.inscricaoRepository = inscricaoRepository;
+    }
 
     public Map<String, Object> login(String email, String senha) {
         Optional<Usuario> opt = usuarioRepository.findByEmail(email);

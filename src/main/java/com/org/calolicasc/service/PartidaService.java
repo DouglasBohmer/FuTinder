@@ -2,7 +2,6 @@ package com.org.calolicasc.service;
 
 import com.org.calolicasc.model.*;
 import com.org.calolicasc.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,13 +14,21 @@ import java.util.*;
 @Service
 public class PartidaService {
 
-    @Autowired private PartidaRepository partidaRepository;
-    @Autowired private QuadraRepository quadraRepository;
-    @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private InscricaoRepository inscricaoRepository;
+    private final PartidaRepository partidaRepository;
+    private final QuadraRepository quadraRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final InscricaoRepository inscricaoRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy", new Locale("pt", "BR"));
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
+    public PartidaService(PartidaRepository partidaRepository, QuadraRepository quadraRepository,
+                          UsuarioRepository usuarioRepository, InscricaoRepository inscricaoRepository) {
+        this.partidaRepository = partidaRepository;
+        this.quadraRepository = quadraRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.inscricaoRepository = inscricaoRepository;
+    }
 
     @Transactional
     public Map<String, Object> criarPartida(Long organizadorId, Long quadraId, String nome,
@@ -128,6 +135,50 @@ public class PartidaService {
         Partida p = partidaRepository.findByLinkConvite(token)
             .orElseThrow(() -> new RuntimeException("Convite não encontrado"));
         return toResponse(p, null);
+    }
+
+    @Transactional
+    public Map<String, Object> atualizarPartida(Long partidaId, Long organizadorId, Long quadraId,
+                                                String nome, String data, String horario,
+                                                Integer vagasTotais, String nivel) {
+        Partida p = partidaRepository.findById(partidaId)
+            .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
+
+        if (!p.getOrganizador().getId().equals(organizadorId)) {
+            throw new RuntimeException("Apenas o organizador pode editar");
+        }
+        if (Boolean.TRUE.equals(p.getCancelada())) {
+            throw new RuntimeException("Partida cancelada não pode ser editada");
+        }
+        if (nome == null || nome.isBlank()) {
+            throw new RuntimeException("Nome da partida é obrigatório");
+        }
+        if (vagasTotais == null || vagasTotais < 2) {
+            throw new RuntimeException("Informe pelo menos 2 vagas");
+        }
+
+        LocalDateTime dataHora = LocalDateTime.of(LocalDate.parse(data), LocalTime.parse(horario));
+        if (partidaRepository.existsByQuadraIdAndDataHoraAndCanceladaFalseAndIdNot(quadraId, dataHora, partidaId)) {
+            throw new RuntimeException("Quadra já reservada neste horário");
+        }
+
+        Quadra quadra = quadraRepository.findById(quadraId)
+            .orElseThrow(() -> new RuntimeException("Quadra não encontrada"));
+
+        int vagasPreenchidas = p.getVagasTotais() - p.getVagasDisponiveis();
+        if (vagasTotais < vagasPreenchidas) {
+            throw new RuntimeException("Total de vagas não pode ser menor que jogadores confirmados");
+        }
+
+        p.setNome(nome);
+        p.setQuadra(quadra);
+        p.setDataHora(dataHora);
+        p.setVagasTotais(vagasTotais);
+        p.setVagasDisponiveis(vagasTotais - vagasPreenchidas);
+        p.setNivel(nivel != null && !nivel.isBlank() ? nivel : "Intermediário");
+        p = partidaRepository.save(p);
+
+        return toResponse(p, organizadorId);
     }
 
     @Transactional

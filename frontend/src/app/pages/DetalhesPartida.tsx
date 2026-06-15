@@ -1,17 +1,31 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router'
-import { Calendar, Clock, MapPin, Users, Share2, Globe, UserCheck, UserPlus, Search, LogOut } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, Share2, Globe, UserCheck, UserPlus, Search, LogOut, Edit3, Save, X } from 'lucide-react'
 import { api } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
+
+const HORARIOS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00']
+const NIVEIS = ['Iniciante','Intermediário','Avançado']
 
 export default function DetalhesPartida() {
   const { id } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [partida, setPartida] = useState<any>(null)
+  const [quadras, setQuadras] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [editando, setEditando] = useState(false)
+  const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [msg, setMsg] = useState('')
+  const [form, setForm] = useState({
+    nome: '',
+    data: '',
+    horario: '',
+    quadraId: '',
+    vagasTotais: 10,
+    nivel: 'Intermediário'
+  })
 
   const carregar = () => {
     api.get(`/partidas/${id}`)
@@ -21,6 +35,46 @@ export default function DetalhesPartida() {
   }
 
   useEffect(() => { carregar() }, [id])
+  useEffect(() => { api.get('/quadras').then(setQuadras).catch(console.error) }, [])
+
+  const abrirEdicao = () => {
+    const [data, hora = ''] = String(partida.dataHoraRaw || '').split('T')
+    setForm({
+      nome: partida.nome || '',
+      data: data || '',
+      horario: hora.substring(0, 5) || partida.horario || '',
+      quadraId: String(partida.quadraId || ''),
+      vagasTotais: partida.vagasTotais || 10,
+      nivel: partida.nivel || 'Intermediário'
+    })
+    setErro('')
+    setMsg('')
+    setEditando(true)
+  }
+
+  const salvarEdicao = async () => {
+    if (!form.nome || !form.data || !form.horario || !form.quadraId) {
+      setErro('Preencha todos os campos da edição')
+      return
+    }
+    setSalvando(true)
+    setErro('')
+    setMsg('')
+    try {
+      const atualizada = await api.put(`/partidas/${id}`, {
+        ...form,
+        quadraId: Number(form.quadraId),
+        vagasTotais: Number(form.vagasTotais)
+      })
+      setPartida(atualizada)
+      setEditando(false)
+      setMsg('Partida atualizada com sucesso!')
+    } catch (e: any) {
+      setErro(e.message)
+    } finally {
+      setSalvando(false)
+    }
+  }
 
   const togglePublico = async () => {
     try { await api.put(`/partidas/${id}/toggle-publico`); carregar() }
@@ -68,46 +122,117 @@ export default function DetalhesPartida() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-white mb-6">Informações da Partida</h2>
-            <div className="space-y-4">
-              {[
-                { icon: Calendar, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Data', val: partida.data },
-                { icon: Clock, color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Horário', val: partida.horario },
-                { icon: MapPin, color: 'text-zinc-400', bg: 'bg-zinc-700', label: 'Local', val: partida.quadraNome, sub: partida.quadraEndereco },
-              ].map(({ icon: Icon, color, bg, label, val, sub }: any) => (
-                <div key={label} className="flex items-center gap-4">
-                  <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center shrink-0`}>
-                    <Icon className={`w-5 h-5 ${color}`} />
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <h2 className="text-xl font-bold text-white">Informações da Partida</h2>
+              {partida.isOrganizador && !partida.cancelada && !editando && (
+                <button onClick={abrirEdicao}
+                  className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold px-4 py-2 rounded-xl transition-all text-sm">
+                  <Edit3 className="w-4 h-4 text-green-400" />Editar
+                </button>
+              )}
+            </div>
+
+            {editando ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Nome da partida</label>
+                  <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all" />
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Data</label>
+                    <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all" />
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs">{label}</p>
-                    <p className="text-white font-semibold">{val}</p>
-                    {sub && <p className="text-gray-500 text-sm">{sub}</p>}
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Horário</label>
+                    <select value={form.horario} onChange={e => setForm(f => ({ ...f, horario: e.target.value }))}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all">
+                      <option value="">Selecione</option>
+                      {HORARIOS.map(h => <option key={h}>{h}</option>)}
+                    </select>
                   </div>
                 </div>
-              ))}
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 bg-zinc-800 rounded-xl flex items-center justify-center shrink-0">
-                  <Users className="w-5 h-5 text-gray-400" />
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Quadra</label>
+                    <select value={form.quadraId} onChange={e => setForm(f => ({ ...f, quadraId: e.target.value }))}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all">
+                      <option value="">Selecione</option>
+                      {quadras.map(q => <option key={q.id} value={q.id}>{q.nome}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Nível</label>
+                    <select value={form.nivel} onChange={e => setForm(f => ({ ...f, nivel: e.target.value }))}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all">
+                      {NIVEIS.map(n => <option key={n}>{n}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-gray-500 text-xs mb-1">Jogadores</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-white font-semibold">{partida.vagasPreenchidas} / {partida.vagasTotais}</p>
-                    <div className="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden">
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-full rounded-full"
-                        style={{ width: `${(partida.vagasPreenchidas / partida.vagasTotais) * 100}%` }}></div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Total de vagas</label>
+                  <input type="number" min={partida.vagasPreenchidas || 2} max={100} value={form.vagasTotais}
+                    onChange={e => setForm(f => ({ ...f, vagasTotais: Number(e.target.value) }))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-all" />
+                  <p className="text-xs text-gray-500 mt-2">Não pode ser menor que os jogadores já confirmados.</p>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={salvarEdicao} disabled={salvando}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50">
+                    <Save className="w-4 h-4" />{salvando ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                  <button type="button" onClick={() => setEditando(false)}
+                    className="inline-flex items-center justify-center gap-2 px-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-3 rounded-xl transition-all">
+                    <X className="w-4 h-4" />Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {[
+                    { icon: Calendar, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Data', val: partida.data },
+                    { icon: Clock, color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Horário', val: partida.horario },
+                    { icon: MapPin, color: 'text-zinc-400', bg: 'bg-zinc-700', label: 'Local', val: partida.quadraNome, sub: partida.quadraEndereco },
+                  ].map(({ icon: Icon, color, bg, label, val, sub }: any) => (
+                    <div key={label} className="flex items-center gap-4">
+                      <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center shrink-0`}>
+                        <Icon className={`w-5 h-5 ${color}`} />
+                      </div>
+                      <div>
+                        <p className="text-gray-500 text-xs">{label}</p>
+                        <p className="text-white font-semibold">{val}</p>
+                        {sub && <p className="text-gray-500 text-sm">{sub}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 bg-zinc-800 rounded-xl flex items-center justify-center shrink-0">
+                      <Users className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-gray-500 text-xs mb-1">Jogadores</p>
+                      <div className="flex items-center gap-3">
+                        <p className="text-white font-semibold">{partida.vagasPreenchidas} / {partida.vagasTotais}</p>
+                        <div className="flex-1 bg-zinc-700 rounded-full h-2 overflow-hidden">
+                          <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-full rounded-full"
+                            style={{ width: `${(partida.vagasPreenchidas / partida.vagasTotais) * 100}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="mt-6 pt-6 border-t border-zinc-800 flex items-center justify-between">
-              <span className="text-gray-500 text-sm">Status da Partida</span>
-              <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${partida.cancelada ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
-                {partida.status}
-              </span>
-            </div>
+                <div className="mt-6 pt-6 border-t border-zinc-800 flex items-center justify-between">
+                  <span className="text-gray-500 text-sm">Status da Partida</span>
+                  <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${partida.cancelada ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
+                    {partida.status}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           {partida.jogadores && (

@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface PartidaRepository extends JpaRepository<Partida, Long> {
     List<Partida> findByPublicaTrueAndCanceladaFalseAndVagasDisponiveisGreaterThan(Integer vagas);
     boolean existsByQuadraIdAndDataHoraAndCanceladaFalse(Long quadraId, LocalDateTime dataHora);
+    boolean existsByQuadraIdAndDataHoraAndCanceladaFalseAndIdNot(Long quadraId, LocalDateTime dataHora, Long id);
     List<Partida> findByOrganizador(Usuario organizador);
     Optional<Partida> findByLinkConvite(String linkConvite);
 }
