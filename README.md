@@ -34,10 +34,10 @@ O aplicativo resolve esses gargalos operacionais entregando três frentes princi
 
 | Integrante | RA |
 | --- | --- |
-| Douglas Eduardo Schuller Bohmer - 1327412
-| Lucas Dias - 
-| Gabriel Sordi - 1326966
-| Igor Sebastian - 1326849
+| Douglas Eduardo Schuller Bohmer | 1327412 |
+| Lucas Dias | A preencher |
+| Gabriel Sordi | 1326966 |
+| Igor Sebastian | 1326849 |
 
 ## Entidades e Relacionamentos
 
