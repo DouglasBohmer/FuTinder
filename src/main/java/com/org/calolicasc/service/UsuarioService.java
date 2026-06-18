@@ -3,6 +3,7 @@ package com.org.calolicasc.service;
 import com.org.calolicasc.model.Usuario;
 import com.org.calolicasc.repository.InscricaoRepository;
 import com.org.calolicasc.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -14,18 +15,26 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final InscricaoRepository inscricaoRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, InscricaoRepository inscricaoRepository) {
+    public UsuarioService(UsuarioRepository usuarioRepository, InscricaoRepository inscricaoRepository,
+                          PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.inscricaoRepository = inscricaoRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Map<String, Object> login(String email, String senha) {
         Optional<Usuario> opt = usuarioRepository.findByEmail(email);
-        if (opt.isEmpty() || !opt.get().getSenha().equals(senha)) {
+        if (opt.isEmpty() || !senhaConfere(senha, opt.get().getSenha())) {
             throw new RuntimeException("E-mail ou senha incorretos");
         }
-        return toResponse(opt.get());
+        Usuario usuario = opt.get();
+        if (!senhaCriptografada(usuario.getSenha())) {
+            usuario.setSenha(passwordEncoder.encode(senha));
+            usuario = usuarioRepository.save(usuario);
+        }
+        return toResponse(usuario);
     }
 
     public Map<String, Object> cadastrar(String nome, String email, String senha,
@@ -36,7 +45,7 @@ public class UsuarioService {
         Usuario u = new Usuario();
         u.setNome(nome);
         u.setEmail(email);
-        u.setSenha(senha);
+        u.setSenha(passwordEncoder.encode(senha));
         u.setCidade(cidade);
         u.setEstado(estado);
         u.setPosicao(posicao);
@@ -46,8 +55,7 @@ public class UsuarioService {
     }
 
     public Map<String, Object> getPerfil(Long usuarioId) {
-        Usuario u = usuarioRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario u = buscarUsuarioAutenticado(usuarioId);
         long jogosConfirmados = inscricaoRepository.findByUsuarioId(usuarioId).stream()
             .filter(i -> "CONFIRMADO".equals(i.getStatus())).count();
         Map<String, Object> resp = toResponse(u);
@@ -57,8 +65,7 @@ public class UsuarioService {
 
     public Map<String, Object> atualizarPerfil(Long usuarioId, String nome, String cidade,
                                                  String estado, String posicao, String preferencias) {
-        Usuario u = usuarioRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario u = buscarUsuarioAutenticado(usuarioId);
         if (nome != null && !nome.isBlank()) u.setNome(nome);
         if (cidade != null) u.setCidade(cidade);
         if (estado != null) u.setEstado(estado);
@@ -70,8 +77,7 @@ public class UsuarioService {
 
     public Map<String, Object> salvarFoto(Long usuarioId, String foto) {
         if (foto == null || foto.isBlank()) throw new RuntimeException("Foto inválida");
-        Usuario u = usuarioRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario u = buscarUsuarioAutenticado(usuarioId);
         u.setFoto(foto);
         u = usuarioRepository.save(u);
         return toResponse(u);
@@ -102,13 +108,35 @@ public class UsuarioService {
         if (senhaAtual == null || novaSenha == null || novaSenha.isBlank()) {
             throw new RuntimeException("Preencha todos os campos de senha");
         }
-        Usuario u = usuarioRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-        if (!u.getSenha().equals(senhaAtual)) {
+        Usuario u = buscarUsuarioAutenticado(usuarioId);
+        if (!senhaConfere(senhaAtual, u.getSenha())) {
             throw new RuntimeException("Senha atual incorreta");
         }
-        u.setSenha(novaSenha);
+        u.setSenha(passwordEncoder.encode(novaSenha));
         usuarioRepository.save(u);
+    }
+
+    private Usuario buscarUsuarioAutenticado(Long usuarioId) {
+        if (usuarioId == null) {
+            throw new RuntimeException("Usuário não autenticado");
+        }
+        return usuarioRepository.findById(usuarioId)
+            .orElseThrow(() -> new RuntimeException("Usuário autenticado não encontrado"));
+    }
+
+    private boolean senhaConfere(String senhaInformada, String senhaArmazenada) {
+        if (senhaInformada == null || senhaArmazenada == null) {
+            return false;
+        }
+        if (senhaCriptografada(senhaArmazenada)) {
+            return passwordEncoder.matches(senhaInformada, senhaArmazenada);
+        }
+        return senhaArmazenada.equals(senhaInformada);
+    }
+
+    private boolean senhaCriptografada(String senha) {
+        return senha != null &&
+            (senha.startsWith("$2a$") || senha.startsWith("$2b$") || senha.startsWith("$2y$"));
     }
 
     private Map<String, Object> toResponse(Usuario u) {

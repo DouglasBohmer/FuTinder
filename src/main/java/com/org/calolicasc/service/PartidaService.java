@@ -16,18 +16,19 @@ public class PartidaService {
 
     private final PartidaRepository partidaRepository;
     private final QuadraRepository quadraRepository;
-    private final UsuarioRepository usuarioRepository;
     private final InscricaoRepository inscricaoRepository;
+    private final AuthenticatedUserService authenticatedUserService;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy", new Locale("pt", "BR"));
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     public PartidaService(PartidaRepository partidaRepository, QuadraRepository quadraRepository,
-                          UsuarioRepository usuarioRepository, InscricaoRepository inscricaoRepository) {
+                          InscricaoRepository inscricaoRepository,
+                          AuthenticatedUserService authenticatedUserService) {
         this.partidaRepository = partidaRepository;
         this.quadraRepository = quadraRepository;
-        this.usuarioRepository = usuarioRepository;
         this.inscricaoRepository = inscricaoRepository;
+        this.authenticatedUserService = authenticatedUserService;
     }
 
     @Transactional
@@ -41,8 +42,7 @@ public class PartidaService {
 
         Quadra quadra = quadraRepository.findById(quadraId)
             .orElseThrow(() -> new RuntimeException("Quadra não encontrada"));
-        Usuario organizador = usuarioRepository.findById(organizadorId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario organizador = authenticatedUserService.requireAuthenticatedUser(organizadorId);
 
         Partida p = new Partida();
         p.setNome(nome);
@@ -76,8 +76,7 @@ public class PartidaService {
     }
 
     public List<Map<String, Object>> listarMinhas(Long usuarioId) {
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario usuario = authenticatedUserService.requireAuthenticatedUser(usuarioId);
 
         Set<Long> ids = new LinkedHashSet<>();
         List<Partida> comoOrganizador = partidaRepository.findByOrganizador(usuario);
@@ -102,6 +101,10 @@ public class PartidaService {
     public Map<String, Object> getDetalhes(Long partidaId, Long usuarioId) {
         Partida p = partidaRepository.findById(partidaId)
             .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
+
+        if (usuarioId != null) {
+            authenticatedUserService.requireAuthenticatedUser(usuarioId);
+        }
 
         boolean podeVerJogadores = usuarioId != null &&
             (p.getOrganizador().getId().equals(usuarioId) ||
@@ -141,10 +144,11 @@ public class PartidaService {
     public Map<String, Object> atualizarPartida(Long partidaId, Long organizadorId, Long quadraId,
                                                 String nome, String data, String horario,
                                                 Integer vagasTotais, String nivel) {
+        Usuario usuarioAutenticado = authenticatedUserService.requireAuthenticatedUser(organizadorId);
         Partida p = partidaRepository.findById(partidaId)
             .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
 
-        if (!p.getOrganizador().getId().equals(organizadorId)) {
+        if (!p.getOrganizador().getId().equals(usuarioAutenticado.getId())) {
             throw new RuntimeException("Apenas o organizador pode editar");
         }
         if (Boolean.TRUE.equals(p.getCancelada())) {
@@ -178,11 +182,12 @@ public class PartidaService {
         p.setNivel(nivel != null && !nivel.isBlank() ? nivel : "Intermediário");
         p = partidaRepository.save(p);
 
-        return toResponse(p, organizadorId);
+        return toResponse(p, usuarioAutenticado.getId());
     }
 
     @Transactional
     public Map<String, Object> inscreverUsuario(Long partidaId, Long usuarioId) {
+        Usuario usuario = authenticatedUserService.requireAuthenticatedUser(usuarioId);
         Partida p = partidaRepository.findById(partidaId)
             .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
 
@@ -192,9 +197,6 @@ public class PartidaService {
             throw new RuntimeException("Sem vagas disponíveis");
         if (inscricaoRepository.existsByPartidaIdAndUsuarioId(partidaId, usuarioId))
             throw new RuntimeException("Você já está inscrito nesta partida");
-
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         p.setVagasDisponiveis(p.getVagasDisponiveis() - 1);
         partidaRepository.save(p);
@@ -211,9 +213,10 @@ public class PartidaService {
 
     @Transactional
     public Map<String, Object> sairDaPartida(Long partidaId, Long usuarioId) {
+        Usuario usuarioAutenticado = authenticatedUserService.requireAuthenticatedUser(usuarioId);
         Partida p = partidaRepository.findById(partidaId)
             .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
-        if (p.getOrganizador().getId().equals(usuarioId))
+        if (p.getOrganizador().getId().equals(usuarioAutenticado.getId()))
             throw new RuntimeException("O organizador não pode sair da própria partida");
         if (p.getCancelada())
             throw new RuntimeException("A partida já foi cancelada");
@@ -227,9 +230,10 @@ public class PartidaService {
 
     @Transactional
     public Map<String, Object> togglePublico(Long partidaId, Long usuarioId) {
+        Usuario usuarioAutenticado = authenticatedUserService.requireAuthenticatedUser(usuarioId);
         Partida p = partidaRepository.findById(partidaId)
             .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
-        if (!p.getOrganizador().getId().equals(usuarioId))
+        if (!p.getOrganizador().getId().equals(usuarioAutenticado.getId()))
             throw new RuntimeException("Apenas o organizador pode alterar a visibilidade");
         p.setPublica(!p.getPublica());
         partidaRepository.save(p);
@@ -238,9 +242,10 @@ public class PartidaService {
 
     @Transactional
     public Map<String, Object> cancelarPartida(Long partidaId, Long usuarioId) {
+        Usuario usuarioAutenticado = authenticatedUserService.requireAuthenticatedUser(usuarioId);
         Partida p = partidaRepository.findById(partidaId)
             .orElseThrow(() -> new RuntimeException("Partida não encontrada"));
-        if (!p.getOrganizador().getId().equals(usuarioId))
+        if (!p.getOrganizador().getId().equals(usuarioAutenticado.getId()))
             throw new RuntimeException("Apenas o organizador pode cancelar");
         p.setCancelada(true);
         partidaRepository.save(p);

@@ -3,6 +3,7 @@ package com.org.calolicasc.config;
 import com.org.calolicasc.model.*;
 import com.org.calolicasc.repository.*;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -10,10 +11,13 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UsuarioRepository usuarioRepository;
     private final QuadraRepository quadraRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public DataInitializer(UsuarioRepository usuarioRepository, QuadraRepository quadraRepository) {
+    public DataInitializer(UsuarioRepository usuarioRepository, QuadraRepository quadraRepository,
+                           PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.quadraRepository = quadraRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -23,7 +27,7 @@ public class DataInitializer implements CommandLineRunner {
         Usuario admin = new Usuario();
         admin.setNome("Admin");
         admin.setEmail("admin");
-        admin.setSenha("admin");
+        admin.setSenha(passwordEncoder.encode("admin"));
         admin.setCidade("São Paulo, SP");
         admin.setPosicao("Atacante");
         usuarioRepository.save(admin);

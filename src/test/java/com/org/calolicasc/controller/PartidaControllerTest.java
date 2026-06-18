@@ -165,6 +165,16 @@ class PartidaControllerTest {
             .andExpect(jsonPath("$.erro").value("Apenas o organizador pode cancelar"));
     }
 
+    @Test
+    void deveBloquearUsuarioInexistenteNoHeader() throws Exception {
+        Long partidaId = criarPartida("Pelada Segura", quadraPrincipal.getId(), amanha, "10:00", 6);
+
+        mockMvc.perform(post("/api/partidas/{id}/inscrever", partidaId)
+                .header("X-User-Id", 999L))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.erro").value("Usuário autenticado não encontrado"));
+    }
+
     private Long criarPartida(String nome, Long quadraId, String data, String horario, int vagasTotais) throws Exception {
         String criadaJson = mockMvc.perform(post("/api/partidas")
                 .header("X-User-Id", organizador.getId())
