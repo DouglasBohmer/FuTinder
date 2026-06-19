@@ -240,6 +240,10 @@ http://host.docker.internal:8080/actuator/prometheus
 
 O Grafana é provisionado automaticamente com datasource Prometheus e dashboard do FuTinder.
 
+Print do dashboard de observabilidade:
+
+![Dashboard do Grafana com métricas do FuTinder](grafana-futinder.png)
+
 Credenciais do Grafana:
 
 | Campo | Valor |
