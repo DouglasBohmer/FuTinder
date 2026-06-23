@@ -132,11 +132,9 @@ Usuário inicial criado automaticamente quando o banco está vazio:
 | Login | `admin` |
 | Senha | `admin` |
 
-As senhas são armazenadas com BCrypt. Usuários antigos com senha em texto puro são migrados automaticamente para BCrypt no primeiro login bem-sucedido.
-
 ## Exemplos de Uso dos CRUDs
 
-Os exemplos abaixo usam `curl`. Em operações protegidas, envie o header `X-User-Id` com o ID do usuário autenticado.
+Os exemplos abaixo usam `curl`. Em operações protegidas, o envio é feito via header `X-User-Id` com o ID do usuário autenticado.
 
 ### CRUD de Quadras
 
