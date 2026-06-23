@@ -35,7 +35,7 @@ O aplicativo resolve esses gargalos operacionais entregando três frentes princi
 | Integrante | RA |
 | --- | --- |
 | Douglas Eduardo Schuller Bohmer | 1327412 |
-| Lucas Dias | A preencher |
+| Lucas Dias | 1327049 |
 | Gabriel Sordi | 1326966 |
 | Igor Sebastian | 1326849 |
 
