@@ -111,28 +111,6 @@ Use o frontend em desenvolvimento em:
 http://localhost:5000
 ```
 
-### Build único para entrega
-
-Na raiz do projeto:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
-```
-
-Esse script instala/builda o frontend, copia o React gerado para `src/main/resources/static`, executa os testes do backend e gera o `.jar`.
-
-Para reutilizar `frontend/node_modules` já instalado:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1 -SkipInstall
-```
-
-Depois do build, execute:
-
-```powershell
-java -jar .\target\FuTinder-0.0.1-SNAPSHOT.jar
-```
-
 ## URLs do Sistema
 
 | URL | Uso |
